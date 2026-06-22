@@ -1,0 +1,7 @@
+# Binários e objetos compilados
+*.o
+*.exe
+rotas_goias
+
+# Arquivos temporários de teste
+test_input.txt
