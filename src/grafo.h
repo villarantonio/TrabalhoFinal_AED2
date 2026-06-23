@@ -1,6 +1,8 @@
 #ifndef GRAFO_H
 #define GRAFO_H
 
+#include "hash.h"
+
 /* Nó da lista de adjacência */
 typedef struct AdjNode {
     int destino;
@@ -14,6 +16,7 @@ typedef struct Grafo {
     int num_arestas;
     char** nomes;      /* nome de cada vértice */
     AdjNode** adj;     /* vetor de cabeças de lista */
+    HashTable* tabela; /* tabela hash: nome -> índice do vértice */
 } Grafo;
 
 Grafo* criar_grafo(int num_vertices);

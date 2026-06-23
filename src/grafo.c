@@ -18,6 +18,9 @@ Grafo* criar_grafo(int num_vertices) {
     g->adj = (AdjNode**)calloc(num_vertices, sizeof(AdjNode*));
     if (!g->adj) { perror("calloc adj"); exit(1); }
 
+    /* 163 é primo e dá fator de carga < 0,5 para até 80 entradas */
+    g->tabela = criar_hash(163);
+
     return g;
 }
 
@@ -37,6 +40,7 @@ void destruir_grafo(Grafo* g) {
     }
     free(g->adj);
     free(g->nomes);
+    destruir_hash(g->tabela);
     free(g);
 }
 
@@ -90,6 +94,7 @@ Grafo* carregar_arquivo(const char* caminho) {
         g->nomes[i] = (char*)malloc(strlen(buf) + 1);
         if (!g->nomes[i]) { perror("malloc nome"); exit(1); }
         strcpy(g->nomes[i], buf);
+        hash_inserir(g->tabela, g->nomes[i], i);
     }
 
     /* lê as arestas */
@@ -130,11 +135,7 @@ void imprimir_grafo(Grafo* g) {
     }
 }
 
-/* Retorna o índice do vértice com esse nome, ou -1 se não encontrado */
+/* Retorna o índice do vértice com esse nome (case-insensitive), ou -1 se não encontrado */
 int buscar_vertice_por_nome(Grafo* g, const char* nome) {
-    for (int i = 0; i < g->num_vertices; i++) {
-        if (strcmp(g->nomes[i], nome) == 0)
-            return i;
-    }
-    return -1;
+    return hash_buscar(g->tabela, nome);
 }

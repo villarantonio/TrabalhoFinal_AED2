@@ -1,6 +1,6 @@
 CC      = gcc
 CFLAGS  = -Wall -Wextra -g -std=c99
-SRC     = src/grafo.c src/heap.c src/dijkstra.c src/metricas.c src/main.c
+SRC     = src/grafo.c src/heap.c src/dijkstra.c src/metricas.c src/hash.c src/main.c
 OBJ     = $(SRC:.c=.o)
 TARGET  = rotas_goias
 
