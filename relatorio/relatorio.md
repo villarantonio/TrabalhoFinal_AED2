@@ -15,6 +15,7 @@ Este trabalho implementa um **Sistema de Rotas** baseado em grafo ponderado não
 
 - Modelar a rede rodoviária de 80 municípios goianos usando lista de adjacência;
 - Calcular rotas mais curtas (mínimo custo em km) entre dois municípios usando o algoritmo de Dijkstra com heap mínimo;
+- Permitir busca eficiente de municípios por nome via tabela hash com resolução de colisões por sondagem linear;
 - Analisar métricas estruturais da rede: grau dos vértices, conectividade e distância média.
 
 O **dataset** foi construído com municípios reais de Goiás e distâncias rodoviárias aproximadas em km, incluindo as principais cidades do estado: Goiânia, Anápolis, Caldas Novas, Rio Verde, Jataí, Itumbiara, Catalão, Luziânia, Formosa, Pirenópolis, entre outras.
@@ -30,6 +31,18 @@ O problema é modelado como um **grafo não-dirigido ponderado** G = (V, E):
 - **V** — conjunto de vértices, onde cada vértice representa um município;
 - **E** — conjunto de arestas, onde cada aresta (u, v, w) representa uma rodovia entre os municípios u e v com distância w km;
 - O grafo é **não-dirigido** (todas as estradas têm mão dupla) e **conexo** (qualquer município é alcançável a partir de qualquer outro).
+
+Exemplo parcial da rede modelada (5 municípios):
+
+```
+  Goiania --------18km-------- Aparecida_de_Goiania
+     |  \
+   54km  26km
+     |    \
+  Anapolis  Trindade ----12km---- Senador_Canedo
+
+  Legenda: nos = municipios · arestas = rodovias · pesos = km
+```
 
 ### 2.2 Representação: Lista de Adjacência
 
@@ -76,6 +89,28 @@ Exemplo (estado intermediário do Dijkstra a partir de Goiania):
 ...         ...
 ```
 
+### 2.4 Tabela Hash
+
+A tabela hash mapeia o nome de cada município ao seu índice inteiro no grafo, permitindo localizar qualquer vértice por nome em O(1) médio.
+
+```
+Tabela Hash (capacidade 163, open-addressing + linear probing):
+
++-------+----------------------+-------+
+|  idx  |  chave               | valor |
++-------+----------------------+-------+
+|  ...  |  (vazio)             |  -1   |
+|  ...  |  Goiania             |   0   |
+|  ...  |  Aparecida_de_Goiania|   1   |
+|  ...  |  Anapolis            |   2   |
+|  ...  |  ...                 |  ...  |
+|  ...  |  Posse               |  79   |
++-------+----------------------+-------+
+
+hash("Goiania") = hash("goiania") = hash("GOIANIA")
+-> todos retornam valor 0  (busca case-insensitive via tolower)
+```
+
 ---
 
 ## 3. Estruturas de Dados e Algoritmos
@@ -94,14 +129,40 @@ typedef struct Grafo {
     int num_arestas;
     char** nomes;
     AdjNode** adj;
+    HashTable* tabela;   /* hash: nome -> indice do vertice */
 } Grafo;
 ```
 
-**Carregamento do arquivo:** A função `carregar_arquivo` abre o dataset, lê o cabeçalho (V, E), lê os V nomes de vértices e depois lê as E arestas, chamando `adicionar_aresta` para cada uma. `adicionar_aresta` insere o nó em ambas as listas (origem→destino e destino→origem), garantindo o comportamento não-dirigido.
+**Carregamento do arquivo:** A função `carregar_arquivo` abre o dataset, lê o cabeçalho (V, E), lê os V nomes de vértices e depois lê as E arestas. `adicionar_aresta` insere cada aresta em ambas as listas (origem→destino e destino→origem), garantindo o comportamento não-dirigido. A cada nome lido, `hash_inserir` popula a tabela hash com o par (nome, índice).
 
-**Busca por nome:** `buscar_vertice_por_nome` realiza busca linear O(V) pelo nome do município, suficiente para a interface interativa.
+**Busca por nome:** `buscar_vertice_por_nome` consulta a tabela hash em O(1) médio — substituindo a busca linear O(V) anterior.
 
-### 3.2 Heap Mínimo Indexado (`heap.h` / `heap.c`)
+### 3.2 Tabela Hash (`hash.h` / `hash.c`)
+
+```c
+typedef struct {
+    char* chave;
+    int   valor;
+} HashEntry;
+
+typedef struct {
+    HashEntry* entradas;
+    int        capacidade;
+    int        tamanho;
+} HashTable;
+```
+
+**Hash function:** djb2 com `tolower` aplicado a cada caractere — garante que `"Goiania"`, `"goiania"` e `"GOIANIA"` produzam o mesmo índice, tornando a busca **case-insensitive** sem modificar a string original.
+
+**Resolução de colisões:** linear probing — ao colidir, avança para o próximo slot disponível (módulo capacidade).
+
+**Capacidade:** 163 (número primo) para 80 entradas → fator de carga inicial de ~49%, minimizando colisões.
+
+**Operações principais:**
+- `hash_inserir(t, chave, valor)`: calcula índice via djb2, sonda linearmente até slot livre — O(1) amortizado
+- `hash_buscar(t, chave)`: calcula índice, sonda comparando com `tolower` até encontrar ou encontrar slot vazio — O(1) médio
+
+### 3.3 Heap Mínimo Indexado (`heap.h` / `heap.c`)
 
 O heap mínimo usa um array `posicao[v]` que guarda o índice de cada vértice `v` no array `nos[]`. Isso permite `diminuir_chave` em O(log V) sem busca linear.
 
@@ -112,7 +173,7 @@ O heap mínimo usa um array `posicao[v]` que guarda o índice de cada vértice `
 
 **Invariante:** Toda troca entre posições i e j no array `nos[]` atualiza `posicao[nos[i].vertice]` e `posicao[nos[j].vertice]` antes da troca.
 
-### 3.3 Algoritmo de Dijkstra (`dijkstra.h` / `dijkstra.c`)
+### 3.4 Algoritmo de Dijkstra (`dijkstra.h` / `dijkstra.c`)
 
 O algoritmo de Dijkstra calcula as distâncias mínimas de um vértice-origem a todos os demais.
 
@@ -126,7 +187,7 @@ O algoritmo de Dijkstra calcula as distâncias mínimas de um vértice-origem a 
 
 **Reconstrução do caminho:** A função `imprimir_caminho` usa recursão sobre o array `predecessores` para reconstruir o caminho da origem ao destino.
 
-### 3.4 Métricas (`metricas.h` / `metricas.c`)
+### 3.5 Métricas (`metricas.h` / `metricas.c`)
 
 - **`grau_vertice(g, v)`**: percorre a lista de adjacência de v, contando nós — O(grau(v)).
 - **`vertice_maior_grau(g)`**: chama `grau_vertice` para todos os vértices — O(V + E).
@@ -143,7 +204,9 @@ O algoritmo de Dijkstra calcula as distâncias mínimas de um vértice-origem a 
 | `criar_grafo(V)` | O(V) | O(V) |
 | `adicionar_aresta` | O(1) | O(1) |
 | `carregar_arquivo(V, E)` | O(V + E) | O(V + E) |
-| `buscar_vertice_por_nome` | O(V) | O(1) |
+| `criar_hash(cap)` | O(cap) | O(cap) |
+| `hash_inserir` | O(1) amortizado | O(1) |
+| `hash_buscar` / `buscar_vertice_por_nome` | O(1) médio | O(1) |
 | `inserir_heap` | O(log V) | O(1) |
 | `extrair_minimo` | O(log V) | O(1) |
 | `diminuir_chave` | O(log V) | O(1) |
@@ -160,11 +223,13 @@ O algoritmo de Dijkstra calcula as distâncias mínimas de um vértice-origem a 
 
 **Por que Dijkstra com heap mínimo?** A alternativa ingênua (busca linear pelo mínimo) resulta em O(V²), aceitável para grafos densos. Para grafos esparsos como o nosso (E ≈ 2V), O((V+E) log V) ≈ O(V log V) é superior.
 
+**Por que tabela hash para busca por nome?** A busca linear era O(V). Com a tabela hash djb2 (capacidade 163, fator de carga ~49%), a busca torna-se O(1) médio e ainda ganha tolerância a maiúsculas/minúsculas via `tolower`.
+
 ---
 
 ## 5. Experimentos
 
-Todas as saídas abaixo são reais, capturadas com o dataset `municipios_goias.txt` (80 vértices, 161 arestas).
+As saídas 5.1 a 5.3 são reais, capturadas com o dataset `municipios_goias.txt` (80 vértices, 161 arestas). O experimento 5.4 apresenta saída variável por usar amostragem aleatória.
 
 ### 5.1 Caminho mínimo: Goiânia → Caldas Novas
 
@@ -205,16 +270,28 @@ Grau maximo        : 17
 
 Goiânia, como capital e maior polo urbano do estado, apresenta o maior grau (17 conexões diretas), confirmando seu papel de hub rodoviário central. O grau médio de ~4 reflete a esparsidade da rede, típica de grafos de infraestrutura viária. O grafo é **conexo**: todos os 80 municípios são mutuamente alcançáveis.
 
+### 5.4 Distância média estimada por amostragem aleatória
+
+```
+Opcao: 7
+
+Calculando distancia media com 200 pares aleatorios...
+Distancia media estimada: [preencher apos execucao] km
+```
+
+A opção 7 executa 200 pares aleatórios de municípios, aplica Dijkstra para cada par e calcula a média das distâncias. O valor varia entre execuções por efeito da aleatoriedade, mas converge para a distância média real da rede com amostras suficientes. O método evita calcular todos os V² = 6.400 pares — custo O(V²·(V+E) log V) — ao custo de uma estimativa estatisticamente representativa com apenas 200 execuções de Dijkstra.
+
 ---
 
 ## 6. Conclusões
 
 O sistema implementado demonstra com sucesso a aplicação de:
 
-1. **Listas de adjacência** para representação eficiente de grafos esparsos;
-2. **Heap mínimo indexado** como estrutura de dados auxiliar que eleva Dijkstra de O(V²) para O((V+E) log V);
-3. **BFS** para verificação de conectividade;
-4. **Amostragem aleatória** para estimativa da distância média sem necessidade de computar todos os pares (O(V² · (V+E) log V) seria proibitivo).
+1. **Lista de adjacência** para representação eficiente de grafos esparsos;
+2. **Tabela hash** (open-addressing, djb2 + linear probing) para busca de vértices por nome em O(1) médio com suporte a case-insensitive;
+3. **Heap mínimo indexado** como estrutura auxiliar que eleva Dijkstra de O(V²) para O((V+E) log V);
+4. **BFS** para verificação de conectividade;
+5. **Amostragem aleatória** para estimativa da distância média sem necessidade de computar todos os pares (O(V² · (V+E) log V) seria proibitivo).
 
 ### Limitações
 

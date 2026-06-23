@@ -65,8 +65,9 @@ void hash_inserir(HashTable* t, const char* chave, int valor) {
     while (t->entradas[idx].valor != VAZIO && t->entradas[idx].valor != REMOVIDO)
         idx = (idx + 1) % (unsigned int)t->capacidade;
 
-    t->entradas[idx].chave = strdup(chave);
-    if (!t->entradas[idx].chave) { perror("strdup"); exit(1); }
+    t->entradas[idx].chave = (char*)malloc(strlen(chave) + 1);
+    if (!t->entradas[idx].chave) { perror("malloc chave"); exit(1); }
+    strcpy(t->entradas[idx].chave, chave);
     t->entradas[idx].valor = valor;
     t->tamanho++;
 }
