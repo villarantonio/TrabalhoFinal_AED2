@@ -52,20 +52,15 @@ A escolha de **lista de adjacência** é adequada pois o grafo é **esparso**: c
 Estrutura de memória:
 
 Grafo
-├── nomes[0..79]     → ["Goiania", "Anapolis", ..., "Posse"]
-├── ht               → HashTable (djb2, 199 buckets, chaining)
-│     "goiania"  → 0        "anapolis" → 2
-│     "jatai"    → 44       "rio_verde" → 43   ...
-├── adj[0] → AdjNode{dest=1, peso=18} → AdjNode{dest=2, peso=54} → ... → NULL
-├── adj[1] → AdjNode{dest=0, peso=18} → AdjNode{dest=3, peso=12} → ... → NULL
-├── adj[2] → AdjNode{dest=0, peso=54} → AdjNode{dest=7, peso=28} → ... → NULL
+├── nomes[0..79]  → ["Goiania", "Anapolis", ..., "Posse"]
+├── tabela        → HashTable (djb2, 163 slots, linear probing)
+│     "goiania" → 0    "anapolis" → 2    "jatai" → 44 ...
+├── adj[0]  → {dest=1, 18km} → {dest=2, 54km} → ... → NULL
+├── adj[1]  → {dest=0, 18km} → {dest=3, 12km} → ... → NULL
 │   ...
-└── adj[79]→ AdjNode{dest=24, peso=190}→ AdjNode{dest=25, peso=180}→ NULL
+└── adj[79] → {dest=24, 190km} → {dest=25, 180km} → NULL
 
-AdjNode
-┌──────────┬──────────┬──────────┐
-│ destino  │  peso    │ proximo* │
-└──────────┴──────────┴──────────┘
+AdjNode: [ destino | peso | proximo* ]
 ```
 
 ### 2.3 Heap Mínimo
