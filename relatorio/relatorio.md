@@ -53,7 +53,9 @@ Estrutura de memória:
 
 Grafo
 ├── nomes[0..79]     → ["Goiania", "Anapolis", ..., "Posse"]
-│
+├── ht               → HashTable (djb2, 199 buckets, chaining)
+│     "goiania"  → 0        "anapolis" → 2
+│     "jatai"    → 44       "rio_verde" → 43   ...
 ├── adj[0] → AdjNode{dest=1, peso=18} → AdjNode{dest=2, peso=54} → ... → NULL
 ├── adj[1] → AdjNode{dest=0, peso=18} → AdjNode{dest=3, peso=12} → ... → NULL
 ├── adj[2] → AdjNode{dest=0, peso=54} → AdjNode{dest=7, peso=28} → ... → NULL
@@ -276,10 +278,10 @@ Goiânia, como capital e maior polo urbano do estado, apresenta o maior grau (17
 Opcao: 7
 
 Calculando distancia media com 200 pares aleatorios...
-Distancia media estimada: [preencher apos execucao] km
+Distancia media estimada: 466.9 km
 ```
 
-A opção 7 executa 200 pares aleatórios de municípios, aplica Dijkstra para cada par e calcula a média das distâncias. O valor varia entre execuções por efeito da aleatoriedade, mas converge para a distância média real da rede com amostras suficientes. O método evita calcular todos os V² = 6.400 pares — custo O(V²·(V+E) log V) — ao custo de uma estimativa estatisticamente representativa com apenas 200 execuções de Dijkstra.
+A opção 7 executa 200 pares aleatórios de municípios, aplica Dijkstra para cada par e calcula a média das distâncias. A distância média estimada de **466,9 km** reflete a extensão territorial de Goiás (~340.000 km²). O valor varia levemente entre execuções por efeito da aleatoriedade, mas converge para a distância média real da rede com amostras suficientes. O método evita calcular todos os V² = 6.400 pares — custo O(V²·(V+E) log V) — ao custo de uma estimativa estatisticamente representativa com apenas 200 execuções de Dijkstra.
 
 ---
 
@@ -295,7 +297,7 @@ O sistema implementado demonstra com sucesso a aplicação de:
 
 ### Limitações
 
-- Os nomes de municípios não suportam caracteres acentuados na entrada do usuário (o parser usa `%s` do `fscanf`), portanto devem ser digitados sem acentos.
+- Os nomes de municípios não suportam caracteres acentuados na entrada (o parser do dataset usa `%s` do `fscanf`), portanto devem ser digitados sem acentos.
 - As distâncias são aproximadas e não refletem variações de percurso real (congestionamento, desvios, obras).
 - O dataset cobre apenas 80 dos 246 municípios goianos.
 

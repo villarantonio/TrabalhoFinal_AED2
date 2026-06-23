@@ -1,4 +1,5 @@
 #include "grafo.h"
+#include "hash.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,6 @@ void destruir_grafo(Grafo* g) {
     if (!g) return;
 
     for (int i = 0; i < g->num_vertices; i++) {
-        /* libera lista de adjacência do vértice i */
         AdjNode* cur = g->adj[i];
         while (cur) {
             AdjNode* prox = cur->proximo;
@@ -46,7 +46,6 @@ void destruir_grafo(Grafo* g) {
 
 /* Insere aresta não-dirigida (origem→destino e destino→origem) */
 void adicionar_aresta(Grafo* g, int origem, int destino, double peso) {
-    /* aresta origem → destino */
     AdjNode* no1 = (AdjNode*)malloc(sizeof(AdjNode));
     if (!no1) { perror("malloc AdjNode"); exit(1); }
     no1->destino  = destino;
@@ -54,7 +53,6 @@ void adicionar_aresta(Grafo* g, int origem, int destino, double peso) {
     no1->proximo  = g->adj[origem];
     g->adj[origem] = no1;
 
-    /* aresta destino → origem */
     AdjNode* no2 = (AdjNode*)malloc(sizeof(AdjNode));
     if (!no2) { perror("malloc AdjNode"); exit(1); }
     no2->destino  = origem;
@@ -82,7 +80,7 @@ Grafo* carregar_arquivo(const char* caminho) {
 
     Grafo* g = criar_grafo(num_vertices);
 
-    /* lê os nomes dos vértices */
+    /* lê os nomes dos vértices e popula a tabela hash */
     for (int i = 0; i < num_vertices; i++) {
         char buf[256];
         if (fscanf(fp, "%255s", buf) != 1) {
@@ -135,7 +133,7 @@ void imprimir_grafo(Grafo* g) {
     }
 }
 
-/* Retorna o índice do vértice com esse nome (case-insensitive), ou -1 se não encontrado */
+/* Busca case-insensitive via tabela hash. Retorna índice ou -1. */
 int buscar_vertice_por_nome(Grafo* g, const char* nome) {
     return hash_buscar(g->tabela, nome);
 }
